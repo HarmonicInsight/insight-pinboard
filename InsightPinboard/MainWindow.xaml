@@ -63,6 +63,48 @@
                         Padding="10,4" Margin="4,0" FontSize="12" Cursor="Hand"
                         ToolTip="保存 (Ctrl+S)"/>
 
+                <Separator Width="1" Margin="8,8" Background="{StaticResource BorderSubtle}"/>
+
+                <!-- Search Box -->
+                <Border Background="#15ffffff" CornerRadius="4" Padding="0" Margin="4,0"
+                        BorderBrush="{StaticResource BorderSubtle}" BorderThickness="1">
+                    <Grid Width="180">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="🔍" FontSize="12" VerticalAlignment="Center"
+                                   Margin="8,0,4,0" Foreground="{StaticResource FgDim}"/>
+                        <TextBox x:Name="SearchBox" Grid.Column="1"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{StaticResource FgPrimary}" FontSize="12"
+                                 VerticalAlignment="Center" Padding="4,4"
+                                 TextChanged="SearchBox_TextChanged"
+                                 KeyDown="SearchBox_KeyDown"
+                                 ToolTip="検索 (Ctrl+F)"/>
+                        <TextBlock x:Name="SearchPlaceholder" Grid.Column="1"
+                                   Text="検索..." FontSize="12"
+                                   Foreground="{StaticResource FgDim}"
+                                   VerticalAlignment="Center" Margin="4,0"
+                                   IsHitTestVisible="False"
+                                   Visibility="Visible"/>
+                        <Button x:Name="SearchClearBtn" Grid.Column="2" Content="✕"
+                                Style="{x:Null}"
+                                Background="Transparent" Foreground="{StaticResource FgDim}"
+                                BorderThickness="0" FontSize="10" Cursor="Hand"
+                                Width="20" Height="20" Margin="0,0,4,0"
+                                Click="SearchClear_Click"
+                                Visibility="Collapsed"
+                                ToolTip="クリア (Esc)"/>
+                    </Grid>
+                </Border>
+
+                <!-- Search Results Info -->
+                <TextBlock x:Name="SearchResultText" Text=""
+                           Foreground="{StaticResource FgDim}" FontSize="10"
+                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+
                 <!-- Right side - Zoom controls -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                             VerticalAlignment="Center" HorizontalAlignment="Right">
@@ -89,9 +131,11 @@
                             ToolTip="リセット (Ctrl+0)"/>
                 </StackPanel>
 
-                <TextBlock Text="ファイルやURLをドラッグ＆ドロップ | ホイールでズーム | 中ボタンでパン"
-                           Foreground="{StaticResource FgDim}" FontSize="10"
-                           VerticalAlignment="Center" Margin="20,0"/>
+                <!-- Selection info -->
+                <TextBlock x:Name="SelectionInfoText" Text=""
+                           Foreground="{StaticResource AccentBlue}" FontSize="11"
+                           VerticalAlignment="Center" Margin="8,0"
+                           FontWeight="Medium"/>
             </DockPanel>
         </Border>
 
