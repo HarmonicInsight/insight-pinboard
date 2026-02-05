@@ -201,17 +201,14 @@ public partial class MainWindow : Window
 
     private void RenderAll()
     {
-        PinCanvas.Children.Clear();
-        if (EmptyHint.Parent is Panel hintParent)
+        for (int i = PinCanvas.Children.Count - 1; i >= 0; i--)
         {
-            hintParent.Children.Remove(EmptyHint);
+            var child = PinCanvas.Children[i];
+            if (child != EmptyHint && child != SelectionRect)
+            {
+                PinCanvas.Children.RemoveAt(i);
+            }
         }
-        if (SelectionRect.Parent is Panel selectionParent)
-        {
-            selectionParent.Children.Remove(SelectionRect);
-        }
-        PinCanvas.Children.Add(EmptyHint);
-        PinCanvas.Children.Add(SelectionRect);
 
         _itemElements.Clear();
         _groupElements.Clear();
