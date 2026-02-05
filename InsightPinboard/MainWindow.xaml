@@ -186,7 +186,6 @@
                 MouseUp="Canvas_MouseUp">
 
             <Canvas x:Name="PinCanvas"
-                    Background="Transparent"
                     RenderTransformOrigin="0,0"
                     MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
                     MouseRightButtonDown="Canvas_MouseRightButtonDown">
