@@ -202,6 +202,14 @@ public partial class MainWindow : Window
     private void RenderAll()
     {
         PinCanvas.Children.Clear();
+        if (EmptyHint.Parent is Panel hintParent)
+        {
+            hintParent.Children.Remove(EmptyHint);
+        }
+        if (SelectionRect.Parent is Panel selectionParent)
+        {
+            selectionParent.Children.Remove(SelectionRect);
+        }
         PinCanvas.Children.Add(EmptyHint);
         PinCanvas.Children.Add(SelectionRect);
 
