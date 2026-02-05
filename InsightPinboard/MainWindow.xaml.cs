@@ -201,9 +201,14 @@ public partial class MainWindow : Window
 
     private void RenderAll()
     {
-        PinCanvas.Children.Clear();
-        PinCanvas.Children.Add(EmptyHint);
-        PinCanvas.Children.Add(SelectionRect);
+        for (int i = PinCanvas.Children.Count - 1; i >= 0; i--)
+        {
+            var child = PinCanvas.Children[i];
+            if (child != EmptyHint && child != SelectionRect)
+            {
+                PinCanvas.Children.RemoveAt(i);
+            }
+        }
 
         _itemElements.Clear();
         _groupElements.Clear();

@@ -26,7 +26,8 @@ public class StorageService
                 return CreateDefault();
 
             var json = File.ReadAllText(DataFile);
-            return JsonSerializer.Deserialize<AppData>(json, JsonOptions) ?? CreateDefault();
+            var data = JsonSerializer.Deserialize<AppData>(json, JsonOptions);
+            return Normalize(data ?? CreateDefault());
         }
         catch
         {
@@ -75,6 +76,32 @@ public class StorageService
             Boards = new List<Board> { defaultBoard },
             ActiveBoardId = defaultBoard.Id
         };
+        return data;
+    }
+
+    private static AppData Normalize(AppData data)
+    {
+        data.Boards ??= new List<Board>();
+
+        if (data.Boards.Count == 0)
+        {
+            var defaultBoard = new Board { Name = "メインボード" };
+            data.Boards.Add(defaultBoard);
+            data.ActiveBoardId = defaultBoard.Id;
+        }
+
+        foreach (var board in data.Boards)
+        {
+            board.Items ??= new List<PinItem>();
+            board.Groups ??= new List<PinGroup>();
+        }
+
+        if (string.IsNullOrWhiteSpace(data.ActiveBoardId)
+            || data.Boards.All(b => b.Id != data.ActiveBoardId))
+        {
+            data.ActiveBoardId = data.Boards[0].Id;
+        }
+
         return data;
     }
 }
