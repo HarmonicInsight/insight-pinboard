@@ -54,6 +54,16 @@ public partial class MainWindow : Window
     private List<PinItem> _searchResults = new();
     private int _searchIndex = 0;
 
+    // Undo/Redo
+    private readonly UndoManager _undoManager = new();
+
+    // ドラッグ開始時の位置保存（Undo用）
+    private Dictionary<PinItem, (double x, double y)> _dragStartPositions = new();
+    private (double x, double y)? _groupDragStartPosition;
+
+    // リサイズ開始時のサイズ保存（Undo用）
+    private (double width, double height)? _resizeStartSize;
+
     // 色パレット
     private static readonly string[] NoteColors = {
         "#FFFBBF24", // Yellow
@@ -83,11 +93,15 @@ public partial class MainWindow : Window
         _vm = new MainViewModel();
         DataContext = _vm;
 
+        // Undo/Redo状態変更時にボタン更新
+        _undoManager.StateChanged += (_, _) => UpdateUndoRedoButtons();
+
         Loaded += (_, _) =>
         {
             RefreshBoardTabs();
             RenderAll();
             UpdateStatus();
+            UpdateUndoRedoButtons();
             CenterEmptyHint();
         };
 
@@ -610,6 +624,22 @@ public partial class MainWindow : Window
         _dragStartPoint = e.GetPosition(PinCanvas);
         _isDragging = false;
 
+        // ドラッグ開始位置を保存（Undo用）
+        _dragStartPositions.Clear();
+        if (_dragItem != null)
+        {
+            // 複数選択の場合は全ての開始位置を保存
+            if (_selectedItems.Contains(_dragItem) && _selectedItems.Count > 1)
+            {
+                foreach (var item in _selectedItems)
+                    _dragStartPositions[item] = (item.X, item.Y);
+            }
+            else
+            {
+                _dragStartPositions[_dragItem] = (_dragItem.X, _dragItem.Y);
+            }
+        }
+
         // Ctrl/Shiftクリックで複数選択
         var addToSelection = Keyboard.Modifiers == ModifierKeys.Control || Keyboard.Modifiers == ModifierKeys.Shift;
         if (_dragItem != null)
@@ -691,22 +721,51 @@ public partial class MainWindow : Window
         if (_dragTarget != null)
         {
             _dragTarget.ReleaseMouseCapture();
-            if (_isDragging)
+            if (_isDragging && _dragStartPositions.Count > 0)
             {
-                // 複数選択の場合は全て更新
-                if (_selectedItems.Count > 1)
+                // Undoアクションを作成
+                if (_dragStartPositions.Count > 1)
                 {
-                    foreach (var item in _selectedItems)
-                        _vm.UpdateItemPosition(item, item.X, item.Y);
+                    // 複数アイテム移動
+                    var moves = new List<(PinItem, double, double, double, double)>();
+                    foreach (var kvp in _dragStartPositions)
+                    {
+                        var item = kvp.Key;
+                        var (oldX, oldY) = kvp.Value;
+                        if (Math.Abs(item.X - oldX) > 0.1 || Math.Abs(item.Y - oldY) > 0.1)
+                            moves.Add((item, oldX, oldY, item.X, item.Y));
+                    }
+                    if (moves.Count > 0)
+                    {
+                        // 位置を元に戻してからアクション実行（Undoスタックに正しく積む）
+                        foreach (var (item, oldX, oldY, _, _) in moves)
+                        {
+                            item.X = oldX;
+                            item.Y = oldY;
+                        }
+                        _undoManager.Execute(new MoveMultipleItemsAction(moves));
+                    }
                 }
-                else if (_dragItem != null)
+                else if (_dragItem != null && _dragStartPositions.TryGetValue(_dragItem, out var startPos))
                 {
-                    _vm.UpdateItemPosition(_dragItem, _dragItem.X, _dragItem.Y);
+                    // 単一アイテム移動
+                    var (oldX, oldY) = startPos;
+                    if (Math.Abs(_dragItem.X - oldX) > 0.1 || Math.Abs(_dragItem.Y - oldY) > 0.1)
+                    {
+                        var newX = _dragItem.X;
+                        var newY = _dragItem.Y;
+                        _dragItem.X = oldX;
+                        _dragItem.Y = oldY;
+                        _undoManager.Execute(new MoveItemAction(_dragItem, oldX, oldY, newX, newY));
+                    }
                 }
+
+                RenderAll();
                 _vm.Save();
             }
         }
         _dragTarget = null;
+        _dragStartPositions.Clear();
         _dragItem = null;
         _isDragging = false;
     }
@@ -1255,6 +1314,53 @@ public partial class MainWindow : Window
         StatusText.Text = "保存しました";
     }
 
+    // ===== Undo/Redo =====
+
+    private void Undo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_undoManager.CanUndo)
+        {
+            _undoManager.Undo();
+            RenderAll();
+            _vm.Save();
+            StatusText.Text = "元に戻しました";
+        }
+    }
+
+    private void Redo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_undoManager.CanRedo)
+        {
+            _undoManager.Redo();
+            RenderAll();
+            _vm.Save();
+            StatusText.Text = "やり直しました";
+        }
+    }
+
+    private void UpdateUndoRedoButtons()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            UndoBtn.IsEnabled = _undoManager.CanUndo;
+            RedoBtn.IsEnabled = _undoManager.CanRedo;
+            UndoBtn.Foreground = _undoManager.CanUndo
+                ? (Brush)FindResource("FgSecondary")
+                : (Brush)FindResource("FgDim");
+            RedoBtn.Foreground = _undoManager.CanRedo
+                ? (Brush)FindResource("FgSecondary")
+                : (Brush)FindResource("FgDim");
+
+            // ツールチップに説明を追加
+            UndoBtn.ToolTip = _undoManager.CanUndo
+                ? $"元に戻す: {_undoManager.UndoDescription} (Ctrl+Z)"
+                : "元に戻す (Ctrl+Z)";
+            RedoBtn.ToolTip = _undoManager.CanRedo
+                ? $"やり直し: {_undoManager.RedoDescription} (Ctrl+Y)"
+                : "やり直し (Ctrl+Y)";
+        });
+    }
+
     // ===== Search =====
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1376,21 +1482,27 @@ public partial class MainWindow : Window
     private void DeleteSelected()
     {
         if (_selectedItems.Count == 0 && _selectedGroups.Count == 0) return;
+        if (_vm.ActiveBoard == null) return;
 
         var msg = $"{_selectedItems.Count} アイテム、{_selectedGroups.Count} グループを削除しますか？";
         if (MessageBox.Show(msg, "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
 
-        foreach (var item in _selectedItems.ToList())
-            _vm.RemoveItem(item);
-
-        foreach (var group in _selectedGroups.ToList())
-            _vm.RemoveGroup(group);
+        // Undoアクションを作成
+        var action = new DeleteMultipleAction(
+            _vm.ActiveBoard,
+            _selectedItems.ToList(),
+            _selectedGroups.ToList(),
+            _vm.Items,
+            _vm.Groups
+        );
+        _undoManager.Execute(action);
 
         _selectedItems.Clear();
         _selectedGroups.Clear();
         RenderAll();
         UpdateStatus();
+        _vm.Save();
     }
 
     private void UpdateSelectionInfo()
@@ -1463,6 +1575,14 @@ public partial class MainWindow : Window
                 case Key.S:
                     _vm.Save();
                     StatusText.Text = "保存しました";
+                    e.Handled = true;
+                    break;
+                case Key.Z:
+                    Undo_Click(sender, e);
+                    e.Handled = true;
+                    break;
+                case Key.Y:
+                    Redo_Click(sender, e);
                     e.Handled = true;
                     break;
                 case Key.F:
