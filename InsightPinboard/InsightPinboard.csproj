@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>InsightPinboard</RootNamespace>
+    <AssemblyName>InsightPinboard</AssemblyName>
+    <ApplicationIcon></ApplicationIcon>
+    <Version>0.1.0</Version>
+    <Authors>Harmonic Insight</Authors>
+    <Description>File Pinboard - Visual file organizer for Windows</Description>
+  </PropertyGroup>
+
+</Project>
