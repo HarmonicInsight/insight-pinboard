@@ -185,6 +185,79 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// グループを追加
+    /// </summary>
+    public void AddGroup()
+    {
+        if (ActiveBoard == null) return;
+
+        var group = new PinGroup
+        {
+            Name = $"グループ {Groups.Count + 1}",
+            X = 100 + new Random().Next(200),
+            Y = 100 + new Random().Next(200)
+        };
+        ActiveBoard.Groups.Add(group);
+        Groups.Add(group);
+        ActiveBoard.UpdatedAt = DateTime.Now;
+        Save();
+    }
+
+    /// <summary>
+    /// 指定位置にグループを追加
+    /// </summary>
+    public void AddGroupAt(double x, double y)
+    {
+        if (ActiveBoard == null) return;
+
+        var group = new PinGroup
+        {
+            Name = $"グループ {Groups.Count + 1}",
+            X = x,
+            Y = y
+        };
+        ActiveBoard.Groups.Add(group);
+        Groups.Add(group);
+        ActiveBoard.UpdatedAt = DateTime.Now;
+        Save();
+    }
+
+    /// <summary>
+    /// グループを削除
+    /// </summary>
+    public void RemoveGroup(PinGroup group)
+    {
+        if (ActiveBoard == null) return;
+        ActiveBoard.Groups.Remove(group);
+        Groups.Remove(group);
+        ActiveBoard.UpdatedAt = DateTime.Now;
+        Save();
+    }
+
+    /// <summary>
+    /// 指定位置にメモを追加
+    /// </summary>
+    public void AddNoteAt(double x, double y)
+    {
+        if (ActiveBoard == null) return;
+
+        var item = new PinItem
+        {
+            ItemType = PinItemType.Note,
+            NoteText = "",
+            X = x,
+            Y = y,
+            Color = "#FFFBBF24",
+            Width = 200,
+            Height = 150
+        };
+        ActiveBoard.Items.Add(item);
+        Items.Add(item);
+        ActiveBoard.UpdatedAt = DateTime.Now;
+        Save();
+    }
+
+    /// <summary>
     /// アイテムの位置を更新
     /// </summary>
     public void UpdateItemPosition(PinItem item, double x, double y)
