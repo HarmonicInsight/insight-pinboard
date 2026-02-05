@@ -27,6 +27,7 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             LogException(args.Exception, "Dispatcher");
+            ShowErrorMessage(args.Exception);
             args.Handled = true;
         };
 
@@ -48,6 +49,19 @@ public partial class App : Application
         catch
         {
             // Ignore logging failures to avoid recursive crashes.
+        }
+    }
+
+    private static void ShowErrorMessage(Exception exception)
+    {
+        try
+        {
+            var message = $"エラーが発生しました。\n\n{exception.Message}\n\nログ: {LogFile}";
+            MessageBox.Show(message, "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch
+        {
+            // Ignore UI errors to avoid recursive crashes.
         }
     }
 }
