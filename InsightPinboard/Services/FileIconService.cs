@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -10,6 +12,9 @@ namespace InsightPinboard.Services;
 
 public static class FileIconService
 {
+    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
+    private static readonly ConcurrentDictionary<string, BitmapImage?> _faviconCache = new();
+    private static readonly ConcurrentDictionary<string, bool> _faviconFetching = new();
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SHGetFileInfo(
         string pszPath, uint dwFileAttributes,
@@ -79,4 +84,81 @@ public static class FileIconService
         Models.PinItemType.Note => "📝",
         _ => "📌"
     };
+
+    /// <summary>
+    /// URLからファビコンを取得（キャッシュあり）
+    /// </summary>
+    public static BitmapImage? GetFavicon(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            var domain = uri.Host;
+
+            if (_faviconCache.TryGetValue(domain, out var cached))
+                return cached;
+
+            return null; // 非同期で取得中または未取得
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// ファビコンを非同期で取得してキャッシュに保存
+    /// </summary>
+    public static async Task<BitmapImage?> FetchFaviconAsync(string url, Action? onComplete = null)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            var domain = uri.Host;
+
+            if (_faviconCache.TryGetValue(domain, out var cached))
+                return cached;
+
+            // 既に取得中の場合はスキップ
+            if (!_faviconFetching.TryAdd(domain, true))
+                return null;
+
+            try
+            {
+                // Google Favicon APIを使用
+                var faviconUrl = $"https://www.google.com/s2/favicons?sz=32&domain={domain}";
+                var bytes = await _httpClient.GetByteArrayAsync(faviconUrl);
+
+                BitmapImage? image = null;
+                // UIスレッドでBitmapImageを作成
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    image = new BitmapImage();
+                    using (var stream = new MemoryStream(bytes))
+                    {
+                        image.BeginInit();
+                        image.CacheOption = BitmapCacheOption.OnLoad;
+                        image.StreamSource = stream;
+                        image.EndInit();
+                        image.Freeze();
+                    }
+                });
+
+                if (image != null)
+                {
+                    _faviconCache[domain] = image;
+                    onComplete?.Invoke();
+                }
+                return image;
+            }
+            finally
+            {
+                _faviconFetching.TryRemove(domain, out _);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

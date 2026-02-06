@@ -12,8 +12,34 @@
         Closing="Window_Closing"
         KeyDown="Window_KeyDown">
 
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.New}"/>
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Save}"/>
+        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Undo}"/>
+        <KeyBinding Key="Y" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Redo}"/>
+        <KeyBinding Key="A" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.SelectAll}"/>
+        <KeyBinding Key="Delete" Command="{x:Static ApplicationCommands.Delete}"/>
+        <KeyBinding Key="OemPlus" Modifiers="Ctrl" Command="{x:Static NavigationCommands.IncreaseZoom}"/>
+        <KeyBinding Key="OemMinus" Modifiers="Ctrl" Command="{x:Static NavigationCommands.DecreaseZoom}"/>
+        <KeyBinding Key="D0" Modifiers="Ctrl" Command="{x:Static NavigationCommands.Zoom}"/>
+    </Window.InputBindings>
+
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static ApplicationCommands.New}" Executed="NewBoard_Executed"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Save}" Executed="Save_Executed"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Undo}" Executed="Undo_Executed" CanExecute="Undo_CanExecute"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Redo}" Executed="Redo_Executed" CanExecute="Redo_CanExecute"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.SelectAll}" Executed="SelectAll_Executed"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Delete}" Executed="Delete_Executed" CanExecute="Delete_CanExecute"/>
+        <CommandBinding Command="{x:Static NavigationCommands.IncreaseZoom}" Executed="ZoomIn_Executed"/>
+        <CommandBinding Command="{x:Static NavigationCommands.DecreaseZoom}" Executed="ZoomOut_Executed"/>
+        <CommandBinding Command="{x:Static NavigationCommands.Zoom}" Executed="ZoomReset_Executed"/>
+    </Window.CommandBindings>
+
     <Grid>
         <Grid.RowDefinitions>
+            <!-- Menu -->
+            <RowDefinition Height="Auto"/>
             <!-- Toolbar -->
             <RowDefinition Height="44"/>
             <!-- Board Tabs -->
@@ -24,8 +50,46 @@
             <RowDefinition Height="28"/>
         </Grid.RowDefinitions>
 
+        <!-- ===== MENU BAR ===== -->
+        <Menu Grid.Row="0" Background="{StaticResource BgPanel}"
+              Foreground="{StaticResource FgSecondary}" FontSize="12">
+            <MenuItem Header="ファイル(_F)">
+                <MenuItem Header="新規ボード(_N)" Command="{x:Static ApplicationCommands.New}" InputGestureText="Ctrl+N"/>
+                <Separator/>
+                <MenuItem Header="保存(_S)" Command="{x:Static ApplicationCommands.Save}" InputGestureText="Ctrl+S"/>
+                <Separator/>
+                <MenuItem Header="終了(_X)" Click="Exit_Click" InputGestureText="Alt+F4"/>
+            </MenuItem>
+            <MenuItem Header="編集(_E)">
+                <MenuItem Header="元に戻す(_U)" Command="{x:Static ApplicationCommands.Undo}" InputGestureText="Ctrl+Z"/>
+                <MenuItem Header="やり直し(_R)" Command="{x:Static ApplicationCommands.Redo}" InputGestureText="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="すべて選択(_A)" Command="{x:Static ApplicationCommands.SelectAll}" InputGestureText="Ctrl+A"/>
+                <MenuItem Header="削除(_D)" Command="{x:Static ApplicationCommands.Delete}" InputGestureText="Delete"/>
+                <Separator/>
+                <MenuItem Header="メモ追加(_M)" Click="AddNote_Click" InputGestureText="N"/>
+                <MenuItem Header="グループ追加(_G)" Click="AddGroup_Click" InputGestureText="G"/>
+            </MenuItem>
+            <MenuItem Header="表示(_V)">
+                <MenuItem x:Name="GridSnapMenuItem" Header="グリッドスナップ(_G)" IsCheckable="True" IsChecked="True" Click="GridSnapMenu_Click"/>
+                <Separator/>
+                <MenuItem Header="テーマ(_T)">
+                    <MenuItem x:Name="ThemeDark" Header="ダークモード" IsCheckable="True" IsChecked="True" Click="ThemeDark_Click"/>
+                    <MenuItem x:Name="ThemeLight" Header="ライトモード" IsCheckable="True" Click="ThemeLight_Click"/>
+                    <MenuItem x:Name="ThemeHarmonic" Header="HARMONIC Insight" IsCheckable="True" Click="ThemeHarmonic_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="ズームイン(_I)" Command="{x:Static NavigationCommands.IncreaseZoom}" InputGestureText="Ctrl++"/>
+                <MenuItem Header="ズームアウト(_O)" Command="{x:Static NavigationCommands.DecreaseZoom}" InputGestureText="Ctrl+-"/>
+                <MenuItem Header="ズームリセット(_R)" Command="{x:Static NavigationCommands.Zoom}" InputGestureText="Ctrl+0"/>
+            </MenuItem>
+            <MenuItem Header="ヘルプ(_H)">
+                <MenuItem Header="バージョン情報(_A)" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
         <!-- ===== TOOLBAR ===== -->
-        <Border Grid.Row="0" Background="{StaticResource BgPanel}"
+        <Border Grid.Row="1" Background="{StaticResource BgPanel}"
                 BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1">
             <DockPanel Margin="12,0">
                 <TextBlock Text="📌 Insight Pinboard"
@@ -158,7 +222,7 @@
         </Border>
 
         <!-- ===== BOARD TABS ===== -->
-        <Border Grid.Row="1" Background="{StaticResource BgPanel}"
+        <Border Grid.Row="2" Background="{StaticResource BgPanel}"
                 BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content=" ＋ " Click="AddBoard_Click"
@@ -179,7 +243,7 @@
         </Border>
 
         <!-- ===== CANVAS with Zoom/Pan ===== -->
-        <Border Grid.Row="2" ClipToBounds="True" Background="{StaticResource BgDark}"
+        <Border Grid.Row="3" ClipToBounds="True" Background="{StaticResource BgDark}"
                 MouseWheel="Canvas_MouseWheel"
                 MouseDown="Canvas_MouseDown"
                 MouseMove="Canvas_PanMove"
@@ -234,7 +298,7 @@
         </Border>
 
         <!-- ===== STATUS BAR ===== -->
-        <Border Grid.Row="3" Background="{StaticResource BgPanel}"
+        <Border Grid.Row="4" Background="{StaticResource BgPanel}"
                 BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0">
             <DockPanel Margin="12,0">
                 <TextBlock x:Name="StatusText" Text="準備完了"

@@ -319,34 +319,18 @@ public partial class MainWindow : Window
 
         DockPanel.SetDock(titleBlock, Dock.Top);
 
-        // リサイズハンドル（右下）
-        var resizeHandle = new Rectangle
-        {
-            Width = 16,
-            Height = 16,
-            Fill = new SolidColorBrush(Color.FromArgb(100, 255, 255, 255)),
-            Cursor = Cursors.SizeNWSE,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 4, 4)
-        };
-        resizeHandle.MouseLeftButtonDown += (s, e) =>
+        // 8方向リサイズハンドル
+        var existingChild = border.Child;
+        border.Child = null;
+        var grid = CreateResizeHandlesGrid(existingChild, (dir, e) =>
         {
             _resizeTarget = border;
             _resizeGroup = group;
-            _resizeDirection = "SE";
+            _resizeDirection = dir;
             _dragStartPoint = e.GetPosition(PinCanvas);
-            resizeHandle.CaptureMouse();
+            ((Rectangle)e.Source).CaptureMouse();
             e.Handled = true;
-        };
-        resizeHandle.MouseMove += ResizeHandle_MouseMove;
-        resizeHandle.MouseLeftButtonUp += ResizeHandle_MouseUp;
-
-        var existingChild = border.Child;
-        border.Child = null;
-        var grid = new Grid();
-        grid.Children.Add(existingChild);
-        grid.Children.Add(resizeHandle);
+        });
         border.Child = grid;
 
         // ドラッグイベント
@@ -364,16 +348,55 @@ public partial class MainWindow : Window
     {
         var color = ParseColor(item.Color);
         var isNote = item.ItemType == PinItemType.Note;
+        var isUrl = item.ItemType == PinItemType.Url;
 
         // アイコン/絵文字
-        var emoji = FileIconService.GetDefaultEmoji(item.ItemType);
-        var iconText = new TextBlock
+        FrameworkElement iconElement;
+        if (isUrl)
         {
-            Text = emoji,
-            FontSize = 20,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
+            // URLの場合はファビコンを表示
+            var favicon = FileIconService.GetFavicon(item.Path);
+            if (favicon != null)
+            {
+                iconElement = new System.Windows.Controls.Image
+                {
+                    Source = favicon,
+                    Width = 20,
+                    Height = 20,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+            }
+            else
+            {
+                // ファビコンがない場合は絵文字を表示し、非同期で取得
+                var iconText = new TextBlock
+                {
+                    Text = "🔗",
+                    FontSize = 20,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+                iconElement = iconText;
+
+                // 非同期でファビコンを取得
+                _ = FileIconService.FetchFaviconAsync(item.Path, () =>
+                {
+                    Dispatcher.Invoke(() => RenderAll());
+                });
+            }
+        }
+        else
+        {
+            var emoji = FileIconService.GetDefaultEmoji(item.ItemType);
+            iconElement = new TextBlock
+            {
+                Text = emoji,
+                FontSize = 20,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+        }
 
         // ファイル名
         var nameText = new TextBlock
@@ -390,7 +413,7 @@ public partial class MainWindow : Window
         var topRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Children = { iconText, nameText }
+            Children = { iconElement, nameText }
         };
 
         var stack = new StackPanel { Margin = new Thickness(10, 8, 10, 8) };
@@ -483,6 +506,7 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Stretch
             };
 
+            border.Child = null;
             var outerGrid = new Grid();
             outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -493,37 +517,20 @@ public partial class MainWindow : Window
             border.Child = outerGrid;
         }
 
-        // リサイズハンドル（ノートの場合）
+        // 8方向リサイズハンドル（ノートの場合）
         if (isNote)
         {
             var existingChild = border.Child;
             border.Child = null;
-            var grid = new Grid();
-            grid.Children.Add(existingChild);
-
-            var resizeHandle = new Rectangle
-            {
-                Width = 12,
-                Height = 12,
-                Fill = new SolidColorBrush(Color.FromArgb(80, 0, 0, 0)),
-                Cursor = Cursors.SizeNWSE,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 4, 4)
-            };
-            resizeHandle.MouseLeftButtonDown += (s, e) =>
+            var grid = CreateResizeHandlesGrid(existingChild, (dir, e) =>
             {
                 _resizeTarget = border;
                 _resizeItem = item;
-                _resizeDirection = "SE";
+                _resizeDirection = dir;
                 _dragStartPoint = e.GetPosition(PinCanvas);
-                resizeHandle.CaptureMouse();
+                ((Rectangle)e.Source).CaptureMouse();
                 e.Handled = true;
-            };
-            resizeHandle.MouseMove += ResizeHandle_MouseMove;
-            resizeHandle.MouseLeftButtonUp += ResizeHandle_MouseUp;
-
-            grid.Children.Add(resizeHandle);
+            });
             border.Child = grid;
         }
 
@@ -575,37 +582,59 @@ public partial class MainWindow : Window
         var diffX = pos.X - _dragStartPoint.X;
         var diffY = pos.Y - _dragStartPoint.Y;
 
+        // 8方向リサイズ対応
+        double newX = 0, newY = 0, newWidth = 0, newHeight = 0;
+        double minWidth = 100, minHeight = 80;
+
         if (_resizeItem != null)
         {
-            var newWidth = Math.Max(100, (_resizeItem.Width > 0 ? _resizeItem.Width : 200) + diffX);
-            var newHeight = Math.Max(80, (_resizeItem.Height > 0 ? _resizeItem.Height : 100) + diffY);
+            newX = _resizeItem.X;
+            newY = _resizeItem.Y;
+            newWidth = _resizeItem.Width > 0 ? _resizeItem.Width : 200;
+            newHeight = _resizeItem.Height > 0 ? _resizeItem.Height : 100;
+        }
+        else if (_resizeGroup != null)
+        {
+            newX = _resizeGroup.X;
+            newY = _resizeGroup.Y;
+            newWidth = _resizeGroup.Width;
+            newHeight = _resizeGroup.Height;
+            minWidth = 150;
+            minHeight = 100;
+        }
+        else return;
 
-            if (GridSnapCheck.IsChecked == true)
-            {
-                newWidth = SnapToGrid(newWidth);
-                newHeight = SnapToGrid(newHeight);
-            }
+        // 方向に応じたリサイズ処理
+        if (_resizeDirection.Contains("E")) newWidth += diffX;
+        if (_resizeDirection.Contains("W")) { newWidth -= diffX; newX += diffX; }
+        if (_resizeDirection.Contains("S")) newHeight += diffY;
+        if (_resizeDirection.Contains("N")) { newHeight -= diffY; newY += diffY; }
 
+        // 最小サイズ制限
+        if (newWidth < minWidth) { if (_resizeDirection.Contains("W")) newX -= (minWidth - newWidth); newWidth = minWidth; }
+        if (newHeight < minHeight) { if (_resizeDirection.Contains("N")) newY -= (minHeight - newHeight); newHeight = minHeight; }
+
+        if (_resizeItem != null)
+        {
+            _resizeItem.X = newX;
+            _resizeItem.Y = newY;
             _resizeItem.Width = newWidth;
             _resizeItem.Height = newHeight;
             _resizeTarget.Width = newWidth;
             _resizeTarget.Height = newHeight;
+            Canvas.SetLeft(_resizeTarget, newX);
+            Canvas.SetTop(_resizeTarget, newY);
         }
         else if (_resizeGroup != null)
         {
-            var newWidth = Math.Max(150, _resizeGroup.Width + diffX);
-            var newHeight = Math.Max(100, _resizeGroup.Height + diffY);
-
-            if (GridSnapCheck.IsChecked == true)
-            {
-                newWidth = SnapToGrid(newWidth);
-                newHeight = SnapToGrid(newHeight);
-            }
-
+            _resizeGroup.X = newX;
+            _resizeGroup.Y = newY;
             _resizeGroup.Width = newWidth;
             _resizeGroup.Height = newHeight;
             _resizeTarget.Width = newWidth;
             _resizeTarget.Height = newHeight;
+            Canvas.SetLeft(_resizeTarget, newX);
+            Canvas.SetTop(_resizeTarget, newY);
         }
 
         _dragStartPoint = pos;
@@ -616,10 +645,69 @@ public partial class MainWindow : Window
         if (sender is Rectangle handle)
             handle.ReleaseMouseCapture();
 
+        // ドロップ時にスナップ適用
+        if (GridSnapCheck.IsChecked == true)
+        {
+            if (_resizeItem != null)
+            {
+                _resizeItem.X = SnapToGrid(_resizeItem.X);
+                _resizeItem.Y = SnapToGrid(_resizeItem.Y);
+                _resizeItem.Width = SnapToGrid(_resizeItem.Width);
+                _resizeItem.Height = SnapToGrid(_resizeItem.Height);
+            }
+            else if (_resizeGroup != null)
+            {
+                _resizeGroup.X = SnapToGrid(_resizeGroup.X);
+                _resizeGroup.Y = SnapToGrid(_resizeGroup.Y);
+                _resizeGroup.Width = SnapToGrid(_resizeGroup.Width);
+                _resizeGroup.Height = SnapToGrid(_resizeGroup.Height);
+            }
+            RenderAll();
+        }
+
         _resizeTarget = null;
         _resizeItem = null;
         _resizeGroup = null;
         _vm.Save();
+    }
+
+    private Grid CreateResizeHandlesGrid(UIElement content, Action<string, MouseButtonEventArgs> onResizeStart)
+    {
+        var grid = new Grid();
+        grid.Children.Add(content);
+
+        // 8方向のリサイズハンドル
+        var handles = new (string dir, HorizontalAlignment h, VerticalAlignment v, Cursor cursor, double w, double h2)[]
+        {
+            ("NW", HorizontalAlignment.Left, VerticalAlignment.Top, Cursors.SizeNWSE, 10, 10),
+            ("N", HorizontalAlignment.Center, VerticalAlignment.Top, Cursors.SizeNS, 40, 6),
+            ("NE", HorizontalAlignment.Right, VerticalAlignment.Top, Cursors.SizeNESW, 10, 10),
+            ("W", HorizontalAlignment.Left, VerticalAlignment.Center, Cursors.SizeWE, 6, 40),
+            ("E", HorizontalAlignment.Right, VerticalAlignment.Center, Cursors.SizeWE, 6, 40),
+            ("SW", HorizontalAlignment.Left, VerticalAlignment.Bottom, Cursors.SizeNESW, 10, 10),
+            ("S", HorizontalAlignment.Center, VerticalAlignment.Bottom, Cursors.SizeNS, 40, 6),
+            ("SE", HorizontalAlignment.Right, VerticalAlignment.Bottom, Cursors.SizeNWSE, 10, 10),
+        };
+
+        foreach (var (dir, hAlign, vAlign, cursor, w, h) in handles)
+        {
+            var handle = new Rectangle
+            {
+                Width = w,
+                Height = h,
+                Fill = Brushes.Transparent,
+                Cursor = cursor,
+                HorizontalAlignment = hAlign,
+                VerticalAlignment = vAlign,
+            };
+            var capturedDir = dir;
+            handle.MouseLeftButtonDown += (s, e) => onResizeStart(capturedDir, e);
+            handle.MouseMove += ResizeHandle_MouseMove;
+            handle.MouseLeftButtonUp += ResizeHandle_MouseUp;
+            grid.Children.Add(handle);
+        }
+
+        return grid;
     }
 
     // ===== Drag Items on Canvas =====
@@ -690,22 +778,14 @@ public partial class MainWindow : Window
 
         if (_isDragging)
         {
-            var snapDiffX = diff.X;
-            var snapDiffY = diff.Y;
-
-            if (GridSnapCheck.IsChecked == true)
-            {
-                snapDiffX = SnapToGrid(_dragItem.X + diff.X) - _dragItem.X;
-                snapDiffY = SnapToGrid(_dragItem.Y + diff.Y) - _dragItem.Y;
-            }
-
+            // ドラッグ中はスナップせずスムーズに移動
             // 複数選択されていれば全て一緒に移動
             if (_selectedItems.Count > 1 && _selectedItems.Contains(_dragItem))
             {
                 foreach (var item in _selectedItems)
                 {
-                    item.X += snapDiffX;
-                    item.Y += snapDiffY;
+                    item.X += diff.X;
+                    item.Y += diff.Y;
                     if (_itemElements.TryGetValue(item, out var element))
                     {
                         Canvas.SetLeft(element, item.X);
@@ -715,8 +795,8 @@ public partial class MainWindow : Window
             }
             else
             {
-                _dragItem.X += snapDiffX;
-                _dragItem.Y += snapDiffY;
+                _dragItem.X += diff.X;
+                _dragItem.Y += diff.Y;
                 Canvas.SetLeft(_dragTarget, _dragItem.X);
                 Canvas.SetTop(_dragTarget, _dragItem.Y);
             }
@@ -732,6 +812,16 @@ public partial class MainWindow : Window
             _dragTarget.ReleaseMouseCapture();
             if (_isDragging && _dragStartPositions.Count > 0)
             {
+                // ドロップ時にスナップ適用
+                if (GridSnapCheck.IsChecked == true)
+                {
+                    foreach (var kvp in _dragStartPositions)
+                    {
+                        kvp.Key.X = SnapToGrid(kvp.Key.X);
+                        kvp.Key.Y = SnapToGrid(kvp.Key.Y);
+                    }
+                }
+
                 // Undoアクションを作成
                 if (_dragStartPositions.Count > 1)
                 {
@@ -815,14 +905,9 @@ public partial class MainWindow : Window
 
         if (_isDragging)
         {
+            // ドラッグ中はスナップせずスムーズに移動
             var newX = _dragGroup.X + diff.X;
             var newY = _dragGroup.Y + diff.Y;
-
-            if (GridSnapCheck.IsChecked == true)
-            {
-                newX = SnapToGrid(newX);
-                newY = SnapToGrid(newY);
-            }
 
             Canvas.SetLeft(_dragTarget, newX);
             Canvas.SetTop(_dragTarget, newY);
@@ -838,6 +923,14 @@ public partial class MainWindow : Window
         if (_dragTarget != null)
         {
             _dragTarget.ReleaseMouseCapture();
+
+            // ドロップ時にスナップ適用
+            if (_isDragging && _dragGroup != null && GridSnapCheck.IsChecked == true)
+            {
+                _dragGroup.X = SnapToGrid(_dragGroup.X);
+                _dragGroup.Y = SnapToGrid(_dragGroup.Y);
+                RenderAll();
+            }
         }
         _dragTarget = null;
         _dragGroup = null;
@@ -1524,6 +1617,10 @@ public partial class MainWindow : Window
 
     private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // カードやグループ上のクリックは無視（それぞれのドラッグ処理を使う）
+        if (e.OriginalSource != PinCanvas && !(e.OriginalSource is System.Windows.Shapes.Rectangle rect && rect.Fill is DrawingBrush))
+            return;
+
         // Ctrlが押されていなければ選択をクリア
         if (Keyboard.Modifiers != ModifierKeys.Control && Keyboard.Modifiers != ModifierKeys.Shift)
         {
@@ -1543,6 +1640,10 @@ public partial class MainWindow : Window
 
     private void Canvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // カードやグループ上の右クリックは無視（それぞれのContextMenuを使う）
+        if (e.OriginalSource != PinCanvas && !(e.OriginalSource is System.Windows.Shapes.Rectangle rect && rect.Fill is DrawingBrush))
+            return;
+
         // キャンバス右クリック → 追加メニュー
         var pos = e.GetPosition(PinCanvas);
 
@@ -1678,6 +1779,166 @@ public partial class MainWindow : Window
     private double SnapToGrid(double value)
     {
         return Math.Round(value / GridSize) * GridSize;
+    }
+
+    // ===== Menu Commands =====
+
+    private void NewBoard_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        AddBoard_Click(sender, e);
+    }
+
+    private void Save_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        _vm.Save();
+        UpdateStatus();
+    }
+
+    private void Undo_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        Undo_Click(sender, e);
+    }
+
+    private void Undo_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = _undoManager?.CanUndo == true;
+    }
+
+    private void Redo_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        Redo_Click(sender, e);
+    }
+
+    private void Redo_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = _undoManager?.CanRedo == true;
+    }
+
+    private void SelectAll_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        _selectedItems.Clear();
+        _selectedGroups.Clear();
+        foreach (var item in _vm.Items)
+            _selectedItems.Add(item);
+        foreach (var group in _vm.Groups)
+            _selectedGroups.Add(group);
+        RenderAll();
+        UpdateSelectionInfo();
+    }
+
+    private void Delete_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        DeleteSelected();
+    }
+
+    private void Delete_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = _selectedItems.Count > 0 || _selectedGroups.Count > 0;
+    }
+
+    private void ZoomIn_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        ZoomIn_Click(sender, e);
+    }
+
+    private void ZoomOut_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        ZoomOut_Click(sender, e);
+    }
+
+    private void ZoomReset_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        ZoomReset_Click(sender, e);
+    }
+
+    private void GridSnapMenu_Click(object sender, RoutedEventArgs e)
+    {
+        GridSnapCheck.IsChecked = GridSnapMenuItem.IsChecked;
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.Save();
+        Application.Current.Shutdown();
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(
+            "Insight Pinboard v1.0\n\n" +
+            "ファイル、フォルダ、URL、メモを\n視覚的に整理するためのピンボードアプリ\n\n" +
+            "© 2024 HARMONIC Insight",
+            "バージョン情報",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    // ===== Theme =====
+
+    private void ThemeDark_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyTheme("Dark");
+        ThemeDark.IsChecked = true;
+        ThemeLight.IsChecked = false;
+        ThemeHarmonic.IsChecked = false;
+    }
+
+    private void ThemeLight_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyTheme("Light");
+        ThemeDark.IsChecked = false;
+        ThemeLight.IsChecked = true;
+        ThemeHarmonic.IsChecked = false;
+    }
+
+    private void ThemeHarmonic_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyTheme("Harmonic");
+        ThemeDark.IsChecked = false;
+        ThemeLight.IsChecked = false;
+        ThemeHarmonic.IsChecked = true;
+    }
+
+    private void ApplyTheme(string theme)
+    {
+        var res = Application.Current.Resources;
+
+        switch (theme)
+        {
+            case "Light":
+                res["BgDark"] = new SolidColorBrush(Color.FromRgb(245, 245, 250));
+                res["BgPanel"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                res["BgCard"] = new SolidColorBrush(Color.FromRgb(250, 250, 255));
+                res["FgPrimary"] = new SolidColorBrush(Color.FromRgb(30, 30, 40));
+                res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(80, 80, 100));
+                res["FgDim"] = new SolidColorBrush(Color.FromRgb(150, 150, 170));
+                res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(220, 220, 230));
+                break;
+
+            case "Harmonic":
+                res["BgDark"] = new SolidColorBrush(Color.FromRgb(15, 25, 35));
+                res["BgPanel"] = new SolidColorBrush(Color.FromRgb(20, 35, 50));
+                res["BgCard"] = new SolidColorBrush(Color.FromRgb(25, 45, 65));
+                res["FgPrimary"] = new SolidColorBrush(Color.FromRgb(220, 240, 255));
+                res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(100, 180, 220));
+                res["FgDim"] = new SolidColorBrush(Color.FromRgb(60, 100, 140));
+                res["AccentGreen"] = new SolidColorBrush(Color.FromRgb(0, 200, 150));
+                res["AccentBlue"] = new SolidColorBrush(Color.FromRgb(0, 150, 255));
+                res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(40, 70, 100));
+                break;
+
+            default: // Dark
+                res["BgDark"] = new SolidColorBrush(Color.FromRgb(12, 14, 20));
+                res["BgPanel"] = new SolidColorBrush(Color.FromRgb(22, 25, 37));
+                res["BgCard"] = new SolidColorBrush(Color.FromRgb(30, 34, 51));
+                res["FgPrimary"] = new SolidColorBrush(Color.FromRgb(204, 214, 246));
+                res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(136, 146, 176));
+                res["FgDim"] = new SolidColorBrush(Color.FromRgb(74, 85, 104));
+                res["AccentGreen"] = new SolidColorBrush(Color.FromRgb(74, 222, 128));
+                res["AccentBlue"] = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+                res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(37, 44, 58));
+                break;
+        }
     }
 
     private static Color ParseColor(string hex)
