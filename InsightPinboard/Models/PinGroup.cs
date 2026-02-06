@@ -8,7 +8,7 @@ public class PinGroup
     public string Name { get; set; } = "新しいグループ";
 
     /// <summary>背景色（#AARRGGBB形式）</summary>
-    public string Color { get; set; } = "#201E4A8A";
+    public string Color { get; set; } = "#30B8942F";
 
     /// <summary>キャンバス上のX座標</summary>
     public double X { get; set; }
