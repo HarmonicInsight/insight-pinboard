@@ -342,8 +342,10 @@ public partial class MainWindow : Window
         resizeHandle.MouseMove += ResizeHandle_MouseMove;
         resizeHandle.MouseLeftButtonUp += ResizeHandle_MouseUp;
 
+        var existingChild = border.Child;
+        border.Child = null;
         var grid = new Grid();
-        grid.Children.Add(border.Child);
+        grid.Children.Add(existingChild);
         grid.Children.Add(resizeHandle);
         border.Child = grid;
 
@@ -494,8 +496,10 @@ public partial class MainWindow : Window
         // リサイズハンドル（ノートの場合）
         if (isNote)
         {
+            var existingChild = border.Child;
+            border.Child = null;
             var grid = new Grid();
-            grid.Children.Add(border.Child);
+            grid.Children.Add(existingChild);
 
             var resizeHandle = new Rectangle
             {
