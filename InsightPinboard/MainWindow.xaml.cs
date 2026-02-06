@@ -67,7 +67,7 @@ public partial class MainWindow : Window
     // 色パレット
     private static readonly string[] NoteColors = {
         "#FFFBBF24", // Yellow
-        "#FF60A5FA", // Blue
+        "#FFB8942F", // Gold
         "#FF4ADE80", // Green
         "#FFF472B6", // Pink
         "#FFA78BFA", // Purple
@@ -77,7 +77,7 @@ public partial class MainWindow : Window
     };
 
     private static readonly string[] GroupColors = {
-        "#301E4A8A", // Blue
+        "#30B8942F", // Gold
         "#302D9254", // Green
         "#30D97706", // Yellow
         "#30DC2626", // Red
@@ -120,7 +120,7 @@ public partial class MainWindow : Window
                 Content = board.Name,
                 Tag = board,
                 Background = board == _vm.ActiveBoard
-                    ? new SolidColorBrush(Color.FromArgb(30, 100, 165, 250))
+                    ? new SolidColorBrush(Color.FromArgb(30, 184, 148, 47))
                     : Brushes.Transparent,
                 Foreground = board == _vm.ActiveBoard
                     ? (Brush)FindResource("FgPrimary")
@@ -266,7 +266,7 @@ public partial class MainWindow : Window
     {
         if (selected)
         {
-            border.BorderBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+            border.BorderBrush = new SolidColorBrush(Color.FromRgb(184, 148, 47));
             border.BorderThickness = new Thickness(2);
         }
     }
@@ -1906,13 +1906,14 @@ public partial class MainWindow : Window
         switch (theme)
         {
             case "Light":
-                res["BgDark"] = new SolidColorBrush(Color.FromRgb(245, 245, 250));
-                res["BgPanel"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-                res["BgCard"] = new SolidColorBrush(Color.FromRgb(250, 250, 255));
-                res["FgPrimary"] = new SolidColorBrush(Color.FromRgb(30, 30, 40));
-                res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(80, 80, 100));
-                res["FgDim"] = new SolidColorBrush(Color.FromRgb(150, 150, 170));
-                res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(220, 220, 230));
+                res["BgDark"] = new SolidColorBrush(Color.FromRgb(250, 248, 245));     // Ivory #FAF8F5
+                res["BgPanel"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));     // Card White #FFFFFF
+                res["BgCard"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));      // Card White #FFFFFF
+                res["FgPrimary"] = new SolidColorBrush(Color.FromRgb(28, 25, 23));      // Text Primary #1C1917
+                res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(87, 83, 78));    // Text Secondary #57534E
+                res["FgDim"] = new SolidColorBrush(Color.FromRgb(168, 162, 158));       // Muted text
+                res["AccentGold"] = new SolidColorBrush(Color.FromRgb(184, 148, 47));   // Gold #B8942F
+                res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(231, 226, 218)); // Border #E7E2DA
                 break;
 
             case "Harmonic":
@@ -1923,7 +1924,7 @@ public partial class MainWindow : Window
                 res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(100, 180, 220));
                 res["FgDim"] = new SolidColorBrush(Color.FromRgb(60, 100, 140));
                 res["AccentGreen"] = new SolidColorBrush(Color.FromRgb(0, 200, 150));
-                res["AccentBlue"] = new SolidColorBrush(Color.FromRgb(0, 150, 255));
+                res["AccentGold"] = new SolidColorBrush(Color.FromRgb(184, 148, 47));   // Gold #B8942F
                 res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(40, 70, 100));
                 break;
 
@@ -1935,7 +1936,7 @@ public partial class MainWindow : Window
                 res["FgSecondary"] = new SolidColorBrush(Color.FromRgb(136, 146, 176));
                 res["FgDim"] = new SolidColorBrush(Color.FromRgb(74, 85, 104));
                 res["AccentGreen"] = new SolidColorBrush(Color.FromRgb(74, 222, 128));
-                res["AccentBlue"] = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+                res["AccentGold"] = new SolidColorBrush(Color.FromRgb(184, 148, 47));   // Gold #B8942F
                 res["BorderSubtle"] = new SolidColorBrush(Color.FromRgb(37, 44, 58));
                 break;
         }

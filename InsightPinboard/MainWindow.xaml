@@ -215,7 +215,7 @@
 
                 <!-- Selection info -->
                 <TextBlock x:Name="SelectionInfoText" Text=""
-                           Foreground="{StaticResource AccentBlue}" FontSize="11"
+                           Foreground="{StaticResource AccentGold}" FontSize="11"
                            VerticalAlignment="Center" Margin="8,0"
                            FontWeight="Medium"/>
             </DockPanel>
@@ -289,10 +289,10 @@
 
                 <!-- Selection Rectangle -->
                 <Rectangle x:Name="SelectionRect"
-                           Stroke="{StaticResource AccentBlue}"
+                           Stroke="{StaticResource AccentGold}"
                            StrokeThickness="1"
                            StrokeDashArray="4 2"
-                           Fill="#2060a5fa"
+                           Fill="#20B8942F"
                            Visibility="Collapsed"/>
             </Canvas>
         </Border>
